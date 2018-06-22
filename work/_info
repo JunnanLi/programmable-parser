@@ -1,0 +1,42 @@
+m255
+K3
+13
+cModel Technology
+Z0 dC:\modeltech64_10.1c\examples
+vparser
+!i10b 1
+!s100 i<762_zQ<gMIRJz^e<@YQ1
+I7gGA^cK0o1aW85c[S07Dh1
+V_H50l?]_1GF4c5JHgWDdP1
+Z1 d\\VBOXSVR\share_with_win10\code\code_2018_5\programmable parser
+w1529569275
+8//VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_instance_1.v
+F//VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_instance_1.v
+L0 29
+Z2 OL;L;10.1c;51
+r1
+!s85 0
+31
+!s108 1529569327.088000
+!s107 //VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_instance_1.v|
+!s90 -reportprogress|300|-work|work|-vopt|//VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_instance_1.v|
+Z3 o-work work -L mtiAvm -L mtiOvm -L mtiUvm -L mtiUPF
+vparser_L4
+Z4 IET=8;?2`_0BUhMZW1R]fS1
+Z5 VRW9>cdhLz9d2WUm]miacU3
+R1
+Z6 w1528553535
+Z7 8//VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_template.v
+Z8 F//VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_template.v
+L0 29
+R2
+r1
+31
+Z9 !s90 -reportprogress|300|-work|work|-vopt|//VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_template.v|
+R3
+Z10 nparser_@l4
+Z11 !s100 NO0zKL__@BHLA9X;`9PYK3
+Z12 !s108 1528553548.973000
+Z13 !s107 //VBOXSVR/share_with_win10/code/code_2018_5/programmable parser/parser_template.v|
+!i10b 1
+!s85 0
