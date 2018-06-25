@@ -40,23 +40,25 @@ def insert_metaReg(fp_inst, protoType_in_pkt):
 			if item_subProto['nextState'] == 'READ_PKT_TAIL_S':
 				fp_inst.write('\t\t\treg_tag <= ~reg_tag;\n')
 			fp_inst.write('\t\t\tstate_parser <= %s;\n' %(item_subProto['nextState']))
-
-			#assign metaReg, e.g., {metaReg[1]} <= metadata[x:y]
-			# check whether need to assign metaReg
-			if(item_subProto.has_key('regInfo')):
-				for field in item_subProto['regInfo']:
-					# assign metaReg
-					fp_inst.write('\t\t\t{')
-					for reg in field['array']:
-						regList = field['array']
-						if reg == regList[-1]:
-							fp_inst.write('metaReg[%d]}' % (reg))
-						else:
-							fp_inst.write('metaReg[%d],' % (reg))
-					fp_inst.write('<= metadata_in[%d:%d];\n'% (field['b_start_reg'],
-						field['b_end_reg']))
+			
 			# write end of if (subProto)
 			fp_inst.write('\t\tend\n')
+
+		#assign metaReg, e.g., {metaReg[1]} <= metadata[x:y]
+		# check whether need to assign metaReg
+		if(item.has_key('regInfo')):
+			for field in item['regInfo']:
+				# assign metaReg
+				fp_inst.write('\t\t{')
+				for reg in field['array']:
+					regList = field['array']
+					if reg == regList[-1]:
+						fp_inst.write('metaReg[%d]}' % (reg))
+					else:
+						fp_inst.write('metaReg[%d],' % (reg))
+				fp_inst.write('<= metadata_in[%d:%d];\n'% (field['b_start_reg'],
+					field['b_end_reg']))
+
 		#write end of each case
 		fp_inst.write('\tend\n')
 	#write default case and endcase

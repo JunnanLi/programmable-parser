@@ -12,7 +12,7 @@
 *	READY_COUNT is the minmun clocks used to parse a packet to get metaRegs;
 */
 
-`define NUM_OF_REG 2
+`define NUM_OF_REG 32
 `define NUM_OF_META 3
 `define READY_COUNT 4
 
@@ -167,16 +167,14 @@ case(protocol_type)
 		if(metadata_in[31:16] == 16'h0800) begin
 			protocol_type <= IP_P;
 			state_parser <= READ_PKT_2_S;
-			{metaReg[0],metaReg[1],metaReg[2],metaReg[3],metaReg[4],metaReg[5]}<= metadata_in[127:80];
-			{metaReg[6],metaReg[7],metaReg[8],metaReg[9],metaReg[10],metaReg[11]}<= metadata_in[79:32];
 		end
 		else begin
 			protocol_type <= ARP_P;
 			reg_tag <= ~reg_tag;
 			state_parser <= READ_PKT_TAIL_S;
-			{metaReg[0],metaReg[1],metaReg[2],metaReg[3],metaReg[4],metaReg[5]}<= metadata_in[127:80];
-			{metaReg[6],metaReg[7],metaReg[8],metaReg[9],metaReg[10],metaReg[11]}<= metadata_in[79:32];
 		end
+		{metaReg[0],metaReg[1],metaReg[2],metaReg[3],metaReg[4],metaReg[5]}<= metadata_in[127:80];
+		{metaReg[6],metaReg[7],metaReg[8],metaReg[9],metaReg[10],metaReg[11]}<= metadata_in[79:32];
 	end
 	default: begin
 		reg_tag <= ~reg_tag;
@@ -215,15 +213,15 @@ case(protocol_type)
 		if(metadata_in[71:64] == 8'h06) begin
 			protocol_type <= TCP_P;
 			state_parser <= READ_PKT_3_S;
-			{metaReg[16]}<= metadata_in[71:64];
-			{metaReg[17],metaReg[18],metaReg[19],metaReg[20]}<= metadata_in[47:16];
-			{metaReg[21],metaReg[22]}<= metadata_in[15:0];
 		end
 		else begin
 			protocol_type <= OTHER_P;
 			reg_tag <= ~reg_tag;
 			state_parser <= READ_PKT_TAIL_S;
 		end
+		{metaReg[16]}<= metadata_in[71:64];
+		{metaReg[17],metaReg[18],metaReg[19],metaReg[20]}<= metadata_in[47:16];
+		{metaReg[21],metaReg[22]}<= metadata_in[15:0];
 	end
 	default: begin
 		reg_tag <= ~reg_tag;
@@ -262,16 +260,16 @@ case(protocol_type)
 			protocol_type <= TCP_P;
 			reg_tag <= ~reg_tag;
 			state_parser <= READ_PKT_TAIL_S;
-			{metaReg[23],metaReg[24]}<= metadata_in[127:112];
-			{metaReg[25],metaReg[26]}<= metadata_in[111:96];
-			{metaReg[27],metaReg[28]}<= metadata_in[95:80];
-			{metaReg[29]}<= metadata_in[7:0];
 		end
 		else begin
 			protocol_type <= OTHER_P;
 			reg_tag <= ~reg_tag;
 			state_parser <= READ_PKT_TAIL_S;
 		end
+		{metaReg[23],metaReg[24]}<= metadata_in[127:112];
+		{metaReg[25],metaReg[26]}<= metadata_in[111:96];
+		{metaReg[27],metaReg[28]}<= metadata_in[95:80];
+		{metaReg[29]}<= metadata_in[7:0];
 	end
 	default: begin
 		reg_tag <= ~reg_tag;
