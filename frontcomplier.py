@@ -3,6 +3,7 @@ import re
 import sys
 from common import *
 
+# '1' means printing the test info.
 printTest = 1
 
 fp_script = open('./includes/headers.p4','r')
@@ -10,14 +11,16 @@ fp_script = open('./includes/headers.p4','r')
 # header_field is a list, used to record each field's info, i.e., item_headerField;
 # header_info is a dict, includes {'name', 'length', 'fields'}, and 'fields', i.e., header_field;
 # headers is a list, used to record header_info;
-headers = []
-header_info = {}
 header_field = []
+header_info = {}
+headers = []
 
+'''
 # para_extract is a dict, includes {"$nameOfNode": $field_extract}
 # field_extract is a list, e.g., [{'field_name': x, 'regList': [], 'bitStartList': []},...]
-para_extract = {}
+para_extract = {}headers
 field_extract = []
+'''
 reg_idx = 0
 
 # readHead_valid is a tag, '1' represent starting to read header format;
@@ -61,6 +64,7 @@ for idx in range(len(lineList)):
 
 
 #read parser.p4 to learn the process flow of prasing
+fp_script = open('./includes/l2parser.p4','r')
 
 # nodeDict is a dict, includes all "header" definitions, e.g., header ethernet_t ehternet;
 # firstNode is the first node of parserTrie, e.g., ehternet;
@@ -72,7 +76,6 @@ firstNode = None
 curNode = None
 readHead_valid = 0
 
-fp_script = open('./includes/l2parser.p4','r')
 lineList = fp_script.readlines()
 for idx in range(len(lineList)):
 	itemList = lineList[idx].strip().split(' ')
@@ -147,6 +150,7 @@ firstNode.condition_field_bit_start = item_condition['bStart']
 firstNode.condition_field_bit_end = item_condition['bStart'] + \
 	item_condition['length']
 
+# begin to search parserTrie, add the son node to nodeToSearch;
 while nodeToSearch:
 	each_node = nodeToSearch[0]
 	#del current node from nodeToSearch list
@@ -161,12 +165,16 @@ while nodeToSearch:
 		if curNode.condition_field != '':
 			item_condition = search_headerField_by_name(curNode.condition_field,\
 				curNode.header_field)
+		else:
+			# fake condition, i.e., the last field to assure parsing completedly
+			item_condition = curNode.header_field[-1]
 		curNode.condition_field_bit_start = item_condition['bStart'] + \
 			each_node.max_length
 		curNode.condition_field_bit_end = item_condition['bStart'] +\
 			item_condition['length']+ each_node.max_length
 		check_bit_start_end(curNode.condition_field_bit_start, \
 			curNode.condition_field_bit_end, 0)
+		
 
 		curNode.max_length = each_node.max_length + each_node.son_node.length
 
@@ -183,8 +191,7 @@ if printTest:
 para_define ={}
 para_define['NUM_OF_META_TOFILL'] = (length_extractField+127)/128
 para_define['NUM_OF_REG_TOFILL'] = para_define['NUM_OF_META_TOFILL'] *16
-para_define['READY_COUNT_TOFILL'] = max(para_define['NUM_OF_META_TOFILL'], \
-	(max_length+127)/128)
+para_define['READY_COUNT_TOFILL'] = para_define['NUM_OF_META_TOFILL']+1
 
 if printTest:
 	print para_define
@@ -199,55 +206,28 @@ if printTest:
 	print para_proto_name
 
 #initialise protoType_in_pkt_...
-protoType_in_pkt_1 = []
-protoType_in_pkt_2 = []
-protoType_in_pkt_3 = []
-protoType_in_pkt_4 = []
+protoType_in_pkt_1 = {}
+protoType_in_pkt_2 = {}
+protoType_in_pkt_3 = {}
+protoType_in_pkt_4 = {}
 
-for idx in range(para_define['READY_COUNT_TOFILL']):
+# assignProto initilization
+# to calculate the cases in each clk, i.e., case(state_parser)
+for idx in range((max_length+127)/128):
+	assignProto = []
 	for node_name, each_node in nodeDict.items():
 		bit_start = each_node.condition_field_bit_start
 		bit_end = each_node.condition_field_bit_end
 		if bit_start/128 == idx:
-			item_case = {}
-			item_case['name'] = node_name.upper()+'_P'
-			item_case['regInfo'] = []
-			# regInfo initialization
+			# has parent node, and parent node's condition is on the same line,
+			#	do not need to gen case
 			if each_node.par_node:
 				curNode = each_node.par_node
-				for each_field in curNode.header_field:
-					if each_field.has_key('tag'):
-						if (each_field['length'] + each_field['bStart'] + \
-curNode.max_length - curNode.length) > idx*128:
-							num_reg = min(each_field['length'] + \
-each_field['bStart'] + curNode.max_length - curNode.length - 128*idx, 128)/8
-							unOverReg = each_field['length']/8 - num_reg
-							item_reg ={}
-							item_reg['array'] = []
-							for idx_reg in range(num_reg):
-								item_reg['array'].append(idx_reg +\
-each_field['tag'] + unOverReg)
-							item_reg['b_start_reg'] = 127
-							item_reg['b_end_reg'] = item_reg['b_start_reg']-\
-								num_reg*8+1
-							item_case['regInfo'].append(item_reg)
-
-			for each_field in each_node.header_field:
-				if each_field.has_key('tag'):
-					num_reg = min(each_field['length'], \
-						idx*128+128-(each_node.max_length - \
-						each_node.length+each_field['bStart']))/8
-					item_reg ={}
-					item_reg['array'] = []
-					for idx_reg in range(num_reg):
-						item_reg['array'].append(idx_reg +\
-							each_field['tag'])
-					item_reg['b_start_reg'] = idx*128+127-\
-						each_node.max_length + \
-						each_node.length-each_field['bStart']
-					item_reg['b_end_reg'] = item_reg['b_start_reg']-\
-						num_reg*8+1
-					item_case['regInfo'].append(item_reg)
+				if (curNode.condition_field_bit_end-1)/128 == idx:
+					continue
+			# item_case is the string of each case, e.g., EHTERNET_P
+			item_case = {}
+			item_case['name'] = node_name.upper()+'_P'
 
 			# subProto_list initilization
 			item_case_subProto = []
@@ -256,11 +236,63 @@ each_field['tag'] + unOverReg)
 				# append the son node
 				curNode = each_node.son_node
 				item_subProto ={}
-				item_subProto['condition'] = set_condition(\
-					bit_start, bit_end, curNode.condition_value)
+				condition_string = set_condition(bit_start, bit_end, \
+					curNode.condition_value)
+				# construct the condtionNode list, the headNode is each_node
+				# headNode_con contains the foot node
+				headNode_con = conditionNode(curNode, condition_string)
+				curNode_con = headNode_con
+
+				# check whether cunNode's condition is on the same line, than
+				#	gen an aggregated condition if they are on the same line
+				while curNode_con: 
+				# curNode is the node need to check condition's lineID
+				#	in other word, is the subCondtion node
+					if (curNode.condition_field_bit_end-1)/128 == idx:
+						# has sonNode
+						if curNode.son_node:
+							condition_string = curNode_con.condition_string+\
+' && ' + set_condition( curNode.condition_field_bit_start, curNode.condition_field_bit_end, \
+curNode.son_node.condition_value)
+							newNode_con = conditionNode(curNode.son_node, \
+								condition_stringdi)
+							newNode_con.preNode_con = curNode_con
+							curNode_con = newNode_con
+							curNode = curNode.son_node
+						# do not has sonNode
+						else:
+							
+							# vist the brother node
+							#	if has brother node, then vist them
+							#	else goto the previous node(parent)
+							if curNode.bro_node:
+								curNode = curNode.bro_node
+							else:
+								curNode_con = curNode_con.preNode_con
+					
+					# curNode's condition isn't on the same line
+					#	just add the condition to curNode
+					else:
+						item_subProto['nextProto'] = curNode.name.upper()+'_P'
+						item_subProto['condition'] = curNode_con.condition_string
+						item_subProto['nextState'] = \
+							'READ_PKT_%d_S'%(idx+2)
+						item_case_subProto.append(item_subProto)
+
+						# check brother node
+						if curNode.bro_node:
+							curNode = curNode.bro_node
+							# update condtion_string in condtiontNode
+							parNode = curNode_con.node
+							curNode_con.condition_string = set_condition(\
+parNode.condition_field_bit_start, parNode.condition_field_bit_start, curNode.condition_value)
+						else:
+							# check previous conditionNode
+							curNode_con = curNode_con.preNode_con
+				
 				item_subProto['nextProto'] = curNode.name.upper()+'_P'
 				item_subProto['nextState'] = \
-					'protoType_in_pkt_%d'%(idx+1)
+					'READ_PKT_%d_S'%(idx+2)
 				item_case_subProto.append(item_subProto)
 				# append the bro node
 				while curNode.bro_node:
@@ -271,7 +303,7 @@ each_field['tag'] + unOverReg)
 					item_subProto['nextProto'] = curNode.name.upper()+\
 						'_P'
 					item_subProto['nextState'] = \
-						'protoType_in_pkt_%d'%(idx+1)
+						'READ_PKT_%d_S'%(idx+2)
 					item_case_subProto.append(item_subProto)
 			else:
 				item_subProto ={}
@@ -286,14 +318,130 @@ each_field['tag'] + unOverReg)
 			item_subProto['nextState'] = 'READ_PKT_TAIL_S'
 			item_case_subProto.append(item_subProto)
 
-			if idx == 0:
-				protoType_in_pkt_1.append(item_case)
-			elif idx == 1:
-				protoType_in_pkt_2.append(item_case)
-			elif idx == 2:
-				protoType_in_pkt_3.append(item_case)
-			elif idx == 3:
-				protoType_in_pkt_4.append(item_case)
+			assignProto.append(item_case)
+
+
+	if idx == 0:
+		protoType_in_pkt_1['assignProto'] = assignProto
+	elif idx == 1:
+		protoType_in_pkt_2['assignProto'] = assignProto
+	elif idx == 2:
+		protoType_in_pkt_3['assignProto'] = assignProto
+	elif idx == 3:
+		protoType_in_pkt_4['assignProto'] = assignProto
+
+# assignReg initilization
+# to calculate the cases in each clk, i.e., case(state_parser)
+for idx in range((max_length+127)/128):
+	assignReg = []
+	for node_name, each_node in nodeDict.items():
+		bit_header_start = each_node.header_bit_start
+		bit_header_end = each_node.max_length + each_node.header_bit_start
+		if bit_header_end <= (idx*128):
+			continue
+		item_case = {}
+		item_case['name'] = node_name.upper()+'_P'
+		item_case['regInfo'] = []
+		for each_field in each_node.header_field:
+			if (each_field.has_key('tag')) and \
+((each_field['bStart'] + each_node.header_bit_start) < (idx*128+128)) and\
+((each_field['bStart'] + each_field['length'] + each_node.header_bit_start) > (idx*128)):
+				overReg_front = max(0, idx*128-(each_field['bStart'] + \
+					each_node.header_bit_start))/8
+				overReg_end = max(0, each_field['bStart']+each_field['length']+\
+					each_node.header_bit_start - 128*idx-128)/8
+				num_reg = each_field['length']/8 - overReg_front - overReg_end
+
+				item_reg = {}
+				item_reg['array'] = []
+				for idx_reg in range(num_reg):
+					item_reg['array'].append(idx_reg +each_field['tag']+\
+						overReg_front)
+				item_reg['b_start_reg'] = min(127, 127+128*idx - \
+					each_field['bStart']-each_node.header_bit_start)
+				item_reg['b_end_reg'] = item_reg['b_start_reg'] + 1 -\
+					num_reg*8
+				item_case['regInfo'].append(item_reg)
+		if each_node.par_node:
+			curNode = each_node.par_node
+			for each_field in curNode.header_field:
+				if (each_field.has_key('tag')) and \
+((each_field['bStart'] + curNode.header_bit_start) < (idx*128+128)) and \
+((each_field['bStart'] + each_field['length'] + curNode.header_bit_start) > (idx*128)):
+					overReg_front = max(0, idx*128-(each_field['bStart'] + \
+						curNode.header_bit_start))/8
+					overReg_end = max(0, each_field['bStart']+each_field['length']+\
+						curNode.header_bit_start - 128*idx-128)/8
+					num_reg = each_field['length']/8 - overReg_front - overReg_end
+
+					item_reg = {}
+					item_reg['array'] = []
+					for idx_reg in range(num_reg):
+						item_reg['array'].append(idx_reg +each_field['tag']+\
+							overReg_front)
+					item_reg['b_start_reg'] = min(127, 127+128*idx - \
+						each_field['bStart']-curNode.header_bit_start)
+					item_reg['b_end_reg'] = item_reg['b_start_reg'] + 1 -\
+						num_reg*8
+					item_case['regInfo'].append(item_reg)
+		if each_node.son_node:
+			curNode = each_node.son_node
+			for each_field in curNode.header_field:
+				if (each_field.has_key('tag')) and \
+((each_field['bStart'] + curNode.header_bit_start) < (idx*128+128))and \
+((each_field['bStart'] + each_field['length'] + curNode.header_bit_start) > (idx*128)):
+					overReg_front = max(0, idx*128-(each_field['bStart'] + \
+						curNode.header_bit_start))/8
+					overReg_end = max(0, each_field['bStart']+each_field['length']+\
+						curNode.header_bit_start - 128*idx-128)/8
+					num_reg = each_field['length']/8 - overReg_front - overReg_end
+
+					item_reg = {}
+					item_reg['array'] = []
+					for idx_reg in range(num_reg):
+						item_reg['array'].append(idx_reg +each_field['tag']+\
+							overReg_front)
+					item_reg['b_start_reg'] = min(127, 127+128*idx - \
+						each_field['bStart']-curNode.header_bit_start)
+					item_reg['b_end_reg'] = item_reg['b_start_reg'] + 1 -\
+						num_reg*8
+					item_case['regInfo'].append(item_reg)
+			while curNode.bro_node:
+				curNode = each_node.bro_node
+				for each_field in curNode.header_field:
+					if (each_field.has_key('tag'))and \
+((each_field['bStart'] + curNode.header_bit_start) < (idx*128+128)) and\
+((each_field['bStart'] + each_field['length'] + curNode.header_bit_start) > (idx*128)):
+						overReg_front = max(0, idx*128-(each_field['bStart'] + \
+							curNode.header_bit_start))/8
+						overReg_end = max(0, each_field['bStart'] + \
+each_field['length'] + curNode.header_bit_start - 128*idx-128)/8
+						num_reg = each_field['length']/8 - overReg_front - overReg_end
+
+						item_reg = {}
+						item_reg['array'] = []
+						for idx_reg in range(num_reg):
+							item_reg['array'].append(idx_reg +each_field['tag']+\
+								overReg_front)
+						item_reg['b_start_reg'] = min(127, 127+128*idx - \
+							each_field['bStart']-curNode.header_bit_start)
+						item_reg['b_end_reg'] = item_reg['b_start_reg'] + 1 -\
+							num_reg*8
+						item_case['regInfo'].append(item_reg)
+		if item_case['regInfo'] == []:
+			pass
+		else:
+			assignReg.append(item_case)
+
+	if idx == 0:
+		protoType_in_pkt_1['assignReg'] = assignReg
+	elif idx == 1:
+		protoType_in_pkt_2['assignReg'] = assignReg
+	elif idx == 2:
+		protoType_in_pkt_3['assignReg'] = assignReg
+	elif idx == 3:
+		protoType_in_pkt_4['assignReg'] = assignReg
+
 
 print protoType_in_pkt_1
 print protoType_in_pkt_2
